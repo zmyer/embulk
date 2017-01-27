@@ -1,3 +1,10 @@
+puts "[START] embulk_bundle.rb:"
+ARGV.each do |arg|
+  print "  <#{arg}>"
+end
+puts ""
+puts "  ..."
+puts ""
 
 bundle_path = ENV['EMBULK_BUNDLE_PATH'].to_s
 bundle_path = nil if bundle_path.empty?
@@ -9,6 +16,7 @@ if bundle_path_index
 end
 
 if bundle_path
+  puts "[ RUN ] embulk_bundle.rb: bundle_path"
   ENV['EMBULK_BUNDLE_PATH'] = bundle_path
   ENV['BUNDLE_GEMFILE'] = File.expand_path File.join(bundle_path, "Gemfile")
 
@@ -34,6 +42,7 @@ if bundle_path
   end
 
 else
+  puts "[ RUN ] embulk_bundle.rb: no bundle_path"
   # default GEM_HOME is ~/.embulk/jruby/1.9/. If -b option is set,
   # GEM_HOME is already set by embulk/command/embulk_main.rb
   ENV.delete('EMBULK_BUNDLE_PATH')
@@ -50,3 +59,5 @@ else
   $LOAD_PATH << File.expand_path('../../', File.dirname(__FILE__))
   require 'embulk/command/embulk_main'
 end
+
+puts "[ END ] embulk_bundle.rb."

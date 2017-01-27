@@ -2,6 +2,14 @@ require 'embulk'
 
 module Embulk
   def self.run(argv)
+    puts "[START] embulk_run.rb: Embulk.run:"
+    argv.each do |arg|
+      print "  <#{arg}>"
+    end
+    puts ""
+    puts "  ..."
+    puts ""
+
     # reset context class loader set by org.jruby.Main.main to nil. embulk manages
     # multiple classloaders. default classloader should be Plugin.class.getClassloader().
     java.lang.Thread.current_thread.set_context_class_loader(nil)
@@ -300,6 +308,11 @@ examples:
       begin
         case subcmd
         when :guess
+          puts "[ CALL] Embulk::Runner.guess:"
+          puts "  #{argv[0]}"
+          puts "  #{options}"
+          puts "  #{Embulk::Runner}"
+          puts ""
           Embulk::Runner.guess(argv[0], options)
         when :preview
           Embulk::Runner.preview(argv[0], options)
@@ -313,6 +326,7 @@ examples:
         raise SystemExit.new(1, ex.to_s)
       end
     end
+    puts "[ END ] embulk_run.rb: Embulk.run."
   end
 
   def self.default_gem_home

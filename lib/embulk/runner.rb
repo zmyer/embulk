@@ -5,16 +5,27 @@ module Embulk
 
   class EmbulkRunner
     def initialize(embed)
+      puts "[START] runner.rb:EmbulkRunner::initialize:"
+      puts "  #{embed}"
       @embed = embed  # org.embulk.EmbulkEmbed
+      puts "[ END ] runner.rb:EmbulkRunner::initialize."
     end
 
     def guess(config, options={})
+      puts "[START] runner.rb: EmbulkRunner:guess:"
+      puts "  #{config}"
+      puts "  ..."
+      puts ""
+
       configSource = read_config(config, options)
       output_path = options[:next_config_output_path]
 
       check_file_writable(output_path)
 
+      puts "[ CALL] runner.rb: EmbulkRunner:guess: @embed.guess"
+      puts "  #{@embed}"
       configDiff = @embed.guess(configSource)
+      puts "[ BACK] runner.rb: EmbulkRunner:guess: @embed.guess"
 
       guessedConfigSource = configSource.merge(configDiff)
       yaml = write_config(output_path, guessedConfigSource)
@@ -25,10 +36,16 @@ module Embulk
         puts "Use -o PATH option to write the guessed config file to a file."
       end
 
+      puts "[ END ] runner.rb: EmbulkRunner:guess."
       nil
     end
 
     def preview(config, options={})
+      puts "[START] runner.rb: EmbulkRunner:preview:"
+      puts "  #{config}"
+      puts "  ..."
+      puts ""
+
       configSource = read_config(config, options)
       format = options[:format]
 
@@ -48,10 +65,16 @@ module Embulk
       printer.printAllPages(previewResult.getPages)
       printer.finish
 
+      puts "[ END ] runner.rb: EmbulkRunner:preview."
       nil
     end
 
     def run(config, options={})
+      puts "[START] runner.rb: EmbulkRunner:run:"
+      puts "  #{config}"
+      puts "  ..."
+      puts ""
+
       configSource = read_config(config, options)
       config_diff_path = options[:next_config_diff_path]
       output_path = options[:next_config_output_path]  # deprecated
@@ -108,7 +131,9 @@ module Embulk
       Embulk.logger.info("Next config diff: #{configDiff.toString}")
 
       write_config(config_diff_path, configDiff)
-      write_config(output_path, configSource.merge(configDiff))  # deprecated
+      foo = write_config(output_path, configSource.merge(configDiff))  # deprecated
+      puts "[ END ] runner.rb: EmbulkRunner:run."
+      foo
     end
 
     #def resume_state(config, options={})

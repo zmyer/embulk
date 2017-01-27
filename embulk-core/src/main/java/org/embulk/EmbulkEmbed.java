@@ -153,11 +153,18 @@ public class EmbulkEmbed
 
     public ConfigDiff guess(ConfigSource config)
     {
+        System.out.println("[START] org.embulk.EmbulkEmbed:");
+        System.out.println("  " + this.toString());
+        System.out.println("  " + config.toString());
+        System.out.println("  ...");
+        System.out.println("");
+
         ExecSession exec = newExecSession(config);
         try {
             return guessExecutor.guess(exec, config);
         }
         finally {
+            System.out.println("[ END ] org.embulk.EmbulkEmbed.");
             exec.cleanup();
         }
     }

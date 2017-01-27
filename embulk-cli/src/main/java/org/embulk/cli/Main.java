@@ -6,6 +6,13 @@ public class Main
 {
     public static void main(String[] args)
     {
+        System.out.println("[START] org.embulk.cli.Main:");
+        for (String arg: args) {
+            System.out.printf("  <%s>", arg);
+        }
+        System.out.println("");
+        System.out.println("  ...");
+        System.out.println("");
         // $ java -jar jruby-complete.jar embulk-core.jar!/embulk/command/embulk_bundle.rb "$@"
         String[] jrubyArgs = new String[args.length + 1];
         int i;
@@ -21,6 +28,7 @@ public class Main
             jrubyArgs[i+1] = args[i];
         }
         org.jruby.Main.main(jrubyArgs);
+        System.out.println("[ END ] org.embulk.cli.Main.");
     }
 
     private static String getScriptPath()
