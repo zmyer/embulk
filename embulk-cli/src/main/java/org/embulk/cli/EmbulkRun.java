@@ -71,8 +71,13 @@ public class EmbulkRun
         // op.version = Embulk::VERSION
         EmbulkOptions op = new EmbulkOptions();
         EmbulkHelpFormatter formatter = new EmbulkHelpFormatter();
+        formatter.setWidth(100);
         Range<Integer> args = Range.closed(1, 1);
         ImmutableMap.Builder<String, Object> optionsBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, Object> systemConfigBuilder = ImmutableMap.builder();
+        ImmutableList.Builder<String> pluginPaths = ImmutableList.builder();
+        ImmutableList.Builder<String> loadPaths = ImmutableList.builder();
+        ImmutableList.Builder<String> classPaths = ImmutableList.builder();
         String usage = "";
 
         // puts "#{Time.now.strftime("%Y-%m-%d %H:%M:%S.%3N %z")}: Embulk v#{Embulk::VERSION}"
@@ -85,6 +90,10 @@ public class EmbulkRun
         // options = {
         //   system_config: {}
         // }
+
+        op.addSeparator("  Help:");
+        op.addOption(Option.builder("h").longOpt("help").desc("Print help.").build());
+        op.addSeparator("");
 
         switch (subcmd.or("")) {
         case "run":
@@ -135,65 +144,75 @@ public class EmbulkRun
             break;
         case "cleanup":
             // op.banner = "Usage: embulk cleanup <config.yml>"
+            usage = "embulk cleanup <config.yml>";
             // op.separator "  Options:"
+            op.addSeparator("  Options:");
             // op.on('-r', '--resume-state PATH', 'Path to a file to cleanup resume state') do |path|
             //   options[:resume_state_path] = path
             // end
+            op.addOption(Option.builder("r")
+                         .longOpt("resume-state")
+                         .hasArg()
+                         .argName("PATH")
+                         .desc("Path to a file to write or read resume state")
+                         .build());
             // plugin_load_ops.call
+            addPluginLoadOps(op);
             // java_embed_ops.call
+            addJavaEmbedOps(op);
             // args = 1..1
             args = Range.closed(1, 1);
             break;
         case "preview":
             // op.banner = "Usage: embulk preview <config.yml>"
+            usage = "embulk preview <config.yml>";
             // op.separator "  Options:"
+            op.addSeparator("  Options:");
             // op.on('-G', '--vertical', "Use vertical output format", TrueClass) do |b|
             //   options[:format] = "vertical"
             // end
+            op.addOption(Option.builder("G")
+                         .longOpt("vertical")
+                         .desc("Use vertical output format")
+                         .build());
             // plugin_load_ops.call
+            addPluginLoadOps(op);
             // java_embed_ops.call
+            addJavaEmbedOps(op);
             // args = 1..1
             args = Range.closed(1, 1);
             break;
         case "guess":
             // op.banner = "Usage: embulk guess <partial-config.yml>"
+            usage = "embulk guess <partial-config.yml>";
             // op.separator "  Options:"
+            op.addSeparator("  Options:");
             // op.on('-o', '--output PATH', 'Path to a file to write the guessed configuration') do |path|
             //   options[:next_config_output_path] = path
             // end
+            op.addOption(Option.builder("o")
+                         .longOpt("output")
+                         .hasArg()
+                         .argName("PATH")
+                         .desc("Path to a file to write the guessed configuration")
+                         .build());
             // op.on('-g', '--guess NAMES', "Comma-separated list of guess plugin names") do |names|
             //   (options[:system_config][:guess_plugins] ||= []).concat names.split(",")  # TODO
             // end
+            op.addOption(Option.builder("g")
+                         .longOpt("guess")
+                         .hasArg()
+                         .argName("NAMES")
+                         .desc("Comma-separated list of guess plugin names")
+                         .build());
             // plugin_load_ops.call
+            addPluginLoadOps(op);
             // java_embed_ops.call
+            addJavaEmbedOps(op);
             // args = 1..1
             args = Range.closed(1, 1);
             break;
-        case "mkbundle":
-            // op.banner = "Usage: embulk mkbundle <directory> [--path PATH]"
-            // op.separator "  Options:"
-            // op.on('--path PATH', 'Relative path from <directory> for the location to install gems to (e.g. --path shared/bundle).') do |path|
-            //   options[:bundle_path] = path
-            // end
-            // op.separator <<-EOF
-/*
-
-  "mkbundle" creates a new a plugin bundle directory. You can install
-  plugins (gems) to the directory instead of ~/.embulk.
-
-  See generated <directory>/Gemfile to install plugins to the directory.
-  Use -b, --bundle BUNDLE_DIR option to use it:
-
-    $ embulk mkbundle ./dir                # create bundle directory
-    $ (cd dir && vi Gemfile && embulk bundle)   # update plugin list
-    $ embulk guess -b ./dir ...            # guess using bundled plugins
-    $ embulk run   -b ./dir ...            # run using bundled plugins
-
-*/
-            // EOF
-            // args = 1..1
-            args = Range.closed(1, 1);
-            break;
+        // NOTE: "mkbundle" is removed.
         case "bundle":
             // if argv[0] == 'new'
             //   usage nil if argv.length != 2
@@ -210,50 +229,56 @@ public class EmbulkRun
             // system_exit_success
             break;
         case "new":
-            // op.banner = "Usage: embulk new <category> <name>" + %[
-/*
-categories:
-    ruby-input                 Ruby record input plugin    (like "mysql")
-    ruby-output                Ruby record output plugin   (like "mysql")
-    ruby-filter                Ruby record filter plugin   (like "add-hostname")
-    #ruby-file-input           Ruby file input plugin      (like "ftp")          # not implemented yet [#21]
-    #ruby-file-output          Ruby file output plugin     (like "ftp")          # not implemented yet [#22]
-    ruby-parser                Ruby file parser plugin     (like "csv")
-    ruby-formatter             Ruby file formatter plugin  (like "csv")
-    #ruby-decoder              Ruby file decoder plugin    (like "gzip")         # not implemented yet [#31]
-    #ruby-encoder              Ruby file encoder plugin    (like "gzip")         # not implemented yet [#32]
-    java-input                 Java record input plugin    (like "mysql")
-    java-output                Java record output plugin   (like "mysql")
-    java-filter                Java record filter plugin   (like "add-hostname")
-    java-file-input            Java file input plugin      (like "ftp")
-    java-file-output           Java file output plugin     (like "ftp")
-    java-parser                Java file parser plugin     (like "csv")
-    java-formatter             Java file formatter plugin  (like "csv")
-    java-decoder               Java file decoder plugin    (like "gzip")
-    java-encoder               Java file encoder plugin    (like "gzip")
-
-examples:
-    new ruby-output hbase
-    new ruby-filter int-to-string
-]
-*/
+            usage =
+                "embulk new <category> <name>" + NEWLINE +
+                NEWLINE +
+                "categories:" + NEWLINE +
+                "    ruby-input                 Ruby record input plugin    (like \"mysql\")" + NEWLINE +
+                "    ruby-output                Ruby record output plugin   (like \"mysql\")" + NEWLINE +
+                "    ruby-filter                Ruby record filter plugin   (like \"add-hostname\")" + NEWLINE +
+                "    #ruby-file-input           Ruby file input plugin      (like \"ftp\")          # not implemented yet [#21]" + NEWLINE +
+                "    #ruby-file-output          Ruby file output plugin     (like \"ftp\")          # not implemented yet [#22]" + NEWLINE +
+                "    ruby-parser                Ruby file parser plugin     (like \"csv\")" + NEWLINE +
+                "    ruby-formatter             Ruby file formatter plugin  (like \"csv\")" + NEWLINE +
+                "    #ruby-decoder              Ruby file decoder plugin    (like \"gzip\")         # not implemented yet [#31]" + NEWLINE +
+                "    #ruby-encoder              Ruby file encoder plugin    (like \"gzip\")         # not implemented yet [#32]" + NEWLINE +
+                "    java-input                 Java record input plugin    (like \"mysql\")" + NEWLINE +
+                "    java-output                Java record output plugin   (like \"mysql\")" + NEWLINE +
+                "    java-filter                Java record filter plugin   (like \"add-hostname\")" + NEWLINE +
+                "    java-file-input            Java file input plugin      (like \"ftp\")" + NEWLINE +
+                "    java-file-output           Java file output plugin     (like \"ftp\")" + NEWLINE +
+                "    java-parser                Java file parser plugin     (like \"csv\")" + NEWLINE +
+                "    java-formatter             Java file formatter plugin  (like \"csv\")" + NEWLINE +
+                "    java-decoder               Java file decoder plugin    (like \"gzip\")" + NEWLINE +
+                "    java-encoder               Java file encoder plugin    (like \"gzip\")" + NEWLINE +
+                NEWLINE +
+                "examples:" + NEWLINE +
+                "    new ruby-output hbase" + NEWLINE +
+                "    new ruby-filter int-to-string" + NEWLINE;
             // args = 2..2
             args = Range.closed(2, 2);
             break;
         case "migrate":
             // op.banner = "Usage: embulk migrate <directory>"
+            usage = "embulk migrate <directory>";
             // args = 1..1
             args = Range.closed(1, 1);
             break;
         case "selfupdate":
-            // NOTE: A long version "--force" is added from the original Ruby version.
+            usage = "embulk selfupdate";
             // op.on('-f', "Skip corruption check", TrueClass) do |b|
             //   options[:force] = true
             // end
+            // NOTE: A long version "--force" is added compared to the original Ruby version.
+            op.addOption(Option.builder("f")
+                         .longOpt("force")
+                         .desc("Skip corruption check")
+                         .build());
             // args = 0..1
             args = Range.closed(0, 1);
             break;
         case "example":
+            usage = "embulk example";
             // args = 0..1
             args = Range.closed(0, 1);
             break;
@@ -261,12 +286,9 @@ examples:
             // exec(*argv)
             // exit 127
             break;
-        case "irb":
-            // require 'irb'
-            // IRB.start
-            // system_exit_success
-            break;
+        // NOTE: "irb" is removed.
         default:
+            usage = "embulk";
             // usage "Unknown subcommand #{subcmd.to_s.dump}."
         }
 
@@ -287,9 +309,9 @@ examples:
             optionsSpecified = ImmutableList.copyOf(command.getOptions());
         } catch (ParseException ex) {
             formatter.printHelp(usage, "", op, "", false);
-            abortSystem(Optional.of(ex.toString()));
+            abortSystem(Optional.of(ex.getMessage()));
         }
-        if (!args.contains(argsSpecified.size())) {
+        if (!args.contains(argsSpecified.size() - 1)) {
             formatter.printHelp(usage, "", op, "", false);
             abortSystem(Optional.<String>absent());
         }
@@ -303,30 +325,37 @@ examples:
                 optionsBuilder.put("resume_state_path", o.getValue());
                 break;
             case "output":
-                warnOutputDeprecated();
+                if (o.getDescription().equals("(deprecated")) {
+                    warnOutputDeprecated();
+                }
                 optionsBuilder.put("next_config_output_path", o.getValue());
                 break;
             case "config-diff":
+                optionsBuilder.put("next_config_diff_path", o.getValue());
                 break;
             case "vertical":
+                optionsBuilder.put("format", "vertical");
                 break;
             case "guess":
-                break;
-            case "path":
+                systemConfigBuilder.put("guess_plugins", o.getValue().split(","));
                 break;
             case "force":
+                optionsBuilder.put("force", true);
                 break;
             case "log":
+                systemConfigBuilder.put("log_path", o.getValue());
                 break;
             case "log-level":
+                systemConfigBuilder.put("log_level", o.getValue());
                 break;
             case "load":
+                pluginPaths.add(o.getValue());
                 break;
             case "load-path":
+                loadPaths.add(o.getValue());
                 break;
             case "classpath":
-                break;
-            case "bundle":
+                classPaths.addAll(ImmutableList.copyOf(o.getValue().split(java.io.File.pathSeparator)));
                 break;
             }
         }
@@ -385,9 +414,7 @@ examples:
             // options[:version] = ARGV[0]
             // Embulk.selfupdate(options)
             break;
-        case "mkbundle":
-            // new_bundle(argv[0], options[:bundle_path])
-            break;
+        // NOTE: "mkbundle" is removed.
         default:
             // require 'json'
             //
@@ -540,21 +567,13 @@ examples:
                                 .argName("PATH")
                                 .desc("Add java classpath separated by " + java.io.File.pathSeparator + " (CLASSPATH)")
                                 .build());
-        //   op.on('-b', '--bundle BUNDLE_DIR', 'Path to a Gemfile directory (create one using "embulk mkbundle" command)') do |path|
-        //     # only for help message. implemented at lib/embulk/command/embulk_bundle.rb
-        //   end
-        embulkOptions.addOption(Option.builder("b")
-                                .longOpt("bundle")
-                                .hasArg()
-                                .argName("BUNDLE_DIR")
-                                .desc("Path to a Gemfile directory (create one using \"embulk mkbundle\" command)")
-                                .build());
+        // NOTE: "-b" / "--bundle" is removed.
     }
 
     private void abortSystem(Optional<String> message)
     {
         if (message.isPresent()) {
-            System.err.println(message);
+            System.err.println(message.or(""));
         }
         System.exit(1);
     }
@@ -563,6 +582,8 @@ examples:
     {
         System.exit(0);
     }
+
+    private static String NEWLINE = System.getProperty("line.separator");
 }
 
 class EmbulkSeparatorDummyOption extends Option
@@ -616,6 +637,21 @@ class EmbulkHelpFormatter extends HelpFormatter
         super();
         this.setLeftPadding(4);
         this.setSyntaxPrefix("Usage: ");
+    }
+
+    @Override
+    public void printHelp(PrintWriter pw,
+                          int width,
+                          String cmdLineSyntax,
+                          String header,
+                          Options options,
+                          int leftPad,
+                          int descPad,
+                          String footer,
+                          boolean autoUsage)
+    {
+        super.printHelp(pw, width, cmdLineSyntax, header, options, leftPad, descPad, footer, autoUsage);
+        pw.flush();
     }
 
     @Override
@@ -734,7 +770,104 @@ class EmbulkHelpFormatter extends HelpFormatter
     puts ""
 
 
-  // The method is no longer called...
+
+    case subcmd
+    when :example
+      require 'embulk/command/embulk_example'
+      path = ARGV[0] || "embulk-example"
+      puts "Creating #{path} directory..."
+      Embulk.create_example(path)
+      puts ""
+      puts "Run following subcommands to try embulk:"
+      puts ""
+      puts "   1. embulk guess #{File.join(path, 'seed.yml')} -o config.yml"
+      puts "   2. embulk preview config.yml"
+      puts "   3. embulk run config.yml"
+      puts ""
+
+    when :new
+      lang_cate = ARGV[0]
+      name = ARGV[1]
+
+      language, category = case lang_cate
+        when "java-input"       then [:java, :input]
+        when "java-output"      then [:java, :output]
+        when "java-filter"      then [:java, :filter]
+        when "java-file-input"  then [:java, :file_input]
+        when "java-file-output" then [:java, :file_output]
+        when "java-parser"      then [:java, :parser]
+        when "java-formatter"   then [:java, :formatter]
+        when "java-decoder"     then [:java, :decoder]
+        when "java-encoder"     then [:java, :encoder]
+        when "ruby-input"       then [:ruby, :input]
+        when "ruby-output"      then [:ruby, :output]
+        when "ruby-filter"      then [:ruby, :filter]
+        when "ruby-file-input"  then raise "ruby-file-input is not implemented yet. See #21 on github." #[:ruby, :file_input]
+        when "ruby-file-output" then raise "ruby-file-output is not implemented yet. See #22 on github." #[:ruby, :file_output]
+        when "ruby-parser"      then [:ruby, :parser]
+        when "ruby-formatter"   then [:ruby, :formatter]
+        when "ruby-decoder"     then raise "ruby-decoder is not implemented yet. See #31 on github." #[:ruby, :decoder]
+        when "ruby-encoder"     then raise "ruby-decoder is not implemented yet. See #32 on github." #[:ruby, :encoder]
+        else
+          usage_op op, "Unknown category '#{lang_cate}'"
+        end
+
+      require 'embulk/command/embulk_new_plugin'
+      Embulk.new_plugin(name, language, category)
+
+    when :migrate
+      path = ARGV[0]
+      require 'embulk/command/embulk_migrate_plugin'
+      Embulk.migrate_plugin(path)
+
+    when :selfupdate
+      require 'embulk/command/embulk_selfupdate'
+      options[:version] = ARGV[0]
+      Embulk.selfupdate(options)
+
+    when :mkbundle
+      new_bundle(argv[0], options[:bundle_path])
+
+    else
+      require 'json'
+
+      # Gem::StubSpecification is an internal API that seems chainging often.
+      # Gem::Specification.add_spec is deprecated also. Therefore, here makes
+      # -L <path> option alias of -I <path>/lib by assuming that *.gemspec file
+      # always has require_paths = ["lib"].
+      load_paths = load_paths + plugin_paths.map {|path| File.join(path, "lib") }
+
+      setup_load_paths(load_paths)
+      setup_classpaths(classpaths)
+
+      # call setup after setup_classpaths to allow users to overwrite
+      # embulk classes
+      Embulk.setup(options.delete(:system_config))
+
+      begin
+        case subcmd
+        when :guess
+          puts "[ CALL] Embulk::Runner.guess:"
+          puts "  #{argv[0]}"
+          puts "  #{options}"
+          puts "  #{Embulk::Runner}"
+          puts ""
+          Embulk::Runner.guess(argv[0], options)
+        when :preview
+          Embulk::Runner.preview(argv[0], options)
+        when :run
+          Embulk::Runner.run(argv[0], options)
+        end
+      rescue => ex
+        print_exception(ex)
+        puts ""
+        puts "Error: #{ex}"
+        raise SystemExit.new(1, ex.to_s)
+      end
+    end
+    puts "[ END ] embulk_run.rb: Embulk.run."
+  end
+
   def self.default_gem_home
     if RUBY_PLATFORM =~ /java/i
       user_home = java.lang.System.properties["user.home"]
