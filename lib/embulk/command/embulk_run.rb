@@ -226,7 +226,7 @@ examples:
 
     case subcmd
     when :example
-      (org.embulk.cli.EmbulkExample.new).create_example(ARGV[0] || "embulk-example")
+      (org.embulk.cli.EmbulkExample.new).createExample(ARGV[0] || "embulk-example")
 
     when :new
       lang_cate = ARGV[0]
