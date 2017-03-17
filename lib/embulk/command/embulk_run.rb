@@ -274,9 +274,7 @@ examples:
       Embulk.migrate_plugin(path)
 
     when :selfupdate
-      require 'embulk/command/embulk_selfupdate'
-      options[:version] = ARGV[0]
-      Embulk.selfupdate(options)
+      (org.embulk.cli.EmbulkSelfUpdate.new).updateSelf(ARGV[0], options[:force], __FILE__)
 
     when :mkbundle
       new_bundle(argv[0], options[:bundle_path])
