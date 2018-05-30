@@ -1,3 +1,13 @@
+// TODO: Have more details in description and summary.
+description = 'Embulk test helper'
+ext {
+    summary = 'Embulk test helper'
+}
+
+repositories {
+    mavenCentral()
+}
+
 dependencies {
     compile 'junit:junit:4.12'
     compile 'org.hamcrest:hamcrest-library:1.3'

@@ -1,26 +1,22 @@
 package org.embulk.config;
 
-import java.io.IOException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.io.IOException;
 
-public class DataSourceSerDe
-{
-    public static class SerDeModule
-            extends SimpleModule
-    {
+public class DataSourceSerDe {
+    public static class SerDeModule extends SimpleModule {
         @SuppressWarnings("deprecation")
-        public SerDeModule(final ModelManager model)
-        {
+        public SerDeModule(final ModelManager model) {
             // DataSourceImpl
             addSerializer(DataSourceImpl.class, new DataSourceSerializer<DataSourceImpl>());
             addDeserializer(DataSourceImpl.class, new DataSourceDeserializer<DataSourceImpl>(model));
@@ -37,6 +33,8 @@ public class DataSourceSerDe
             addSerializer(TaskReport.class, new DataSourceSerializer<TaskReport>());
             addDeserializer(TaskReport.class, new DataSourceDeserializer<TaskReport>(model));
 
+            // TODO: Remove this registration by v0.10 or earlier.
+            // https://github.com/embulk/embulk/issues/933
             // CommitReport (Deprecated)
             addSerializer(CommitReport.class, new DataSourceSerializer<CommitReport>());
             addDeserializer(CommitReport.class, new DataSourceDeserializer<CommitReport>(model));
@@ -47,22 +45,19 @@ public class DataSourceSerDe
         }
     }
 
-    private static class DataSourceDeserializer <T extends DataSource>  // TODO T extends DataSource super DataSourceImpl
-            extends JsonDeserializer<T>
-    {
+    // TODO T extends DataSource super DataSourceImpl
+    private static class DataSourceDeserializer<T extends DataSource> extends JsonDeserializer<T> {
         private final ModelManager model;
         private final ObjectMapper treeObjectMapper;
 
-        DataSourceDeserializer(ModelManager model)
-        {
+        DataSourceDeserializer(ModelManager model) {
             this.model = model;
             this.treeObjectMapper = new ObjectMapper();
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public T deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
-        {
+        public T deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
             JsonNode json = treeObjectMapper.readTree(jp);
             if (!json.isObject()) {
                 throw new JsonMappingException("Expected object to deserialize DataSource", jp.getCurrentLocation());
@@ -71,13 +66,10 @@ public class DataSourceSerDe
         }
     }
 
-    private static class DataSourceSerializer <T extends DataSource>
-            extends JsonSerializer<T>
-    {
+    private static class DataSourceSerializer<T extends DataSource> extends JsonSerializer<T> {
         @Override
         public void serialize(T value, JsonGenerator jgen, SerializerProvider provider)
-                throws IOException
-        {
+                throws IOException {
             value.getObjectNode().serialize(jgen, provider);
         }
     }

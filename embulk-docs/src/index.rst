@@ -6,9 +6,17 @@
 Embulk
 ==================================
 
-.. image:: _static/embulk-logo.png
-   :width: 512px
+.. image:: _static/embulk-logo-v2/embulk-logo-v2-sq-tr-small.png
+   :width: 128px
    :target: https://github.com/embulk/embulk
+
+Highlights
+-----------
+
+* Embulk's announcement mailing list (read-only) is ready. Please feel free to subscribe! Embulk core members post important updates such as **key releases**, **compatibility information**, and **feedback requests to users**.
+
+  * `Embulk-announce <https://groups.google.com/forum/#!forum/embulk-announce>`_
+
 
 What's Embulk?
 ------------------
@@ -29,7 +37,7 @@ You can define a bulk data loading using combination of input and output plugins
    :width: 640px
    :target: https://github.com/embulk/embulk#quick-start
 
-For example, `this tutorial <recipe/scheduled-csv-load-to-elasticsearch-kibana4.html>`_ describes how to use **file** input plugin with **csv** parser plugin and **gzip** decoder plugin to read CSV files, and **elasticsearch** output plugin to load the records to Elasticsearch.
+For example, `this tutorial <recipe/scheduled-csv-load-to-elasticsearch-kibana5.html>`_ describes how to use **file** input plugin with **csv** parser plugin and **gzip** decoder plugin to read CSV files, and **elasticsearch** output plugin to load the records to Elasticsearch.
 
 Documents
 ------------------
@@ -71,18 +79,24 @@ Documents
    built-in
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
-   customization
+   release
+
+   logo
+
+For developers
+---------------
+
+* `Github <https://github.com/embulk/embulk>`_
 
 * `JavaDoc <javadoc/index.html>`_
 
 * `RDoc <rdoc/_index.html>`_
 
-* `Github <https://github.com/embulk/embulk>`_
+* `Other resources for developers <developers/index.html>`_
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
-   release
-
+   customization

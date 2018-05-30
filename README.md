@@ -11,11 +11,15 @@ Embulk is a parallel bulk data loader that **helps data transfer between various
 
 Embulk documents: http://www.embulk.org/docs/
 
+# Mailing list
+
+* [Embulk-announce](https://groups.google.com/forum/#!forum/embulk-announce): Embulk core members post important updates such as **key releases**, **compatibility information**, and **feedback requests to users**.
+
 ## Quick Start
 
 ### Linux & Mac & BSD
 
-Embulk is a Java application. Please make sure that [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) is installed.
+Embulk is a Java application. Please make sure that Java SE Runtime Environment (JRE) is installed. Embulk v0.8 series runs on Java 7, and Embulk v0.9 series runs on Java 8. Java 9 is not supported in any version for the time being.
 
 Following 4 commands install embulk to your home directory:
 
@@ -30,7 +34,7 @@ Next step: [Running example in 4 commands](#running-example)
 
 ### Windows
 
-Embulk is a Java application. Please make sure that [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) is installed.
+Embulk is a Java application. Please make sure that Java SE Runtime Environment (JRE) is installed. Embulk v0.8 series runs on Java 7, and Embulk v0.9 series runs on Java 8. Java 9 is not supported in any version for the time being.
 
 You can download `embulk.bat` using this command on cmd.exe or PowerShell.exe:
 
@@ -118,7 +122,7 @@ embulk run   -b ./embulk_bundle ...
 
 ## Use cases
 
-* [Scheduled bulk data loading to Elasticsearch + Kibana 4 from CSV files](http://www.embulk.org/docs/recipe/scheduled-csv-load-to-elasticsearch-kibana4.html)
+* [Scheduled bulk data loading to Elasticsearch + Kibana 5 from CSV files](http://www.embulk.org/docs/recipe/scheduled-csv-load-to-elasticsearch-kibana5.html)
 
 For further details, visit [Embulk documentation](http://www.embulk.org/docs/).
 
@@ -145,7 +149,6 @@ Older versions are available at [dl.embulk.org](http://dl.embulk.org).
 
 ```
 ./gradlew cli  # creates pkg/embulk-VERSION.jar
-./gradlew gem  # creates pkg/embulk-VERSION.gem
 ```
 
 You can see JaCoCo's test coverage report at `${project}/build/reports/tests/index.html`
@@ -176,6 +179,10 @@ Task `dependencies` shows dependency tree of embulk-core project:
 ./gradlew :embulk-core:dependencies
 ```
 
+### Update JRuby
+
+Modify `jrubyVersion` in `build.gradle` to update JRuby of Embulk.
+
 ### Documents
 
 Embulk uses Sphinx, YARD (Ruby API) and JavaDoc (Java API) for document generation.
@@ -183,7 +190,6 @@ Embulk uses Sphinx, YARD (Ruby API) and JavaDoc (Java API) for document generati
 ```
 brew install python
 pip install sphinx
-gem install yard
 ./gradlew site
 # documents are: embulk-docs/build/html
 ```
@@ -197,20 +203,17 @@ bintray_user=(bintray user name)
 bintray_api_key=(bintray api key)
 ```
 
-Run following commands and follow its instruction:
+Modify `version` in `build.gradle` at a detached commit to bump Embulk version up.
 
 ```
-./gradlew setVersion -Pto=$VERSION
-```
-
-```
-./gradlew releaseCheck
-./gradlew clean cli gem && ./gradlew release
-git commit -am v$VERSION
-git tag v$VERSION
+git checkout --detach master
+(Edit build.gradle)
+git commit -a
+./gradlew clean && ./gradlew release
+git tag <VERSION>
+git push -u origin <VERSION>
 ```
 
 See also:
 * [Bintray](https://bintray.com)
 * [How to acquire bintray API Keys](https://bintray.com/docs/usermanual/interacting/interacting_editingyouruserprofile.html#anchorAPIKEY)
-

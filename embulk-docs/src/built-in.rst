@@ -48,7 +48,7 @@ A configuration file consists of following sections:
 
 * **out:** Output plugin options. An output plugin is either record-based (`Oracle <https://github.com/embulk/embulk-output-jdbc>`_, `Elasticsearch <https://github.com/muga/embulk-output-elasticsearch>`_, etc) or file-based (`Google Cloud Storage <https://github.com/hakobera/embulk-output-gcs>`_, `Command <https://github.com/embulk/embulk-output-command>`_, etc)
 
-  * **formatter:** If the output is file-based, formatter plugin formats a file format (such as built-in csv, `JSON <https://github.com/takei-yuya/embulk-formatter-jsonl>`_)
+  * **formatter:** If the output is file-based, formatter plugin formats a file format (such as built-in csv, `jsonl <https://github.com/takei-yuya/embulk-formatter-jsonl>`_)
 
   * **encoder:** If the output is file-based, encoder plugin encodes compression or encryption (such as built-in gzip or bzip2)
 
@@ -95,7 +95,7 @@ Configuration file can include another configuration file. To use it, configurat
 
 File will be searched from the relative path of the input configuration file. And file name will be ``_<name>.yml.liquid``. For example, if you add ``{% include 'subdir/inc' %}`` tag to ``myconfig/config.yml.liquid`` file, it includes ``myconfig/subdir/_inc.yml.liquid`` file.
 
-.. code-block:: yaml
+.. code-block:: liquid
 
     # config.yml.liquid
     {% include 'in_mysql' %}
@@ -128,17 +128,19 @@ The ``file`` input plugin reads files from local file system.
 Options
 ~~~~~~~~
 
-+----------------+----------+------------------------------------------------+-----------+
-| name           | type     | description                                    | required? |
-+================+==========+================================================+===========+
-| path\_prefix   | string   | Path prefix of input files                     | required  |
-+----------------+----------+------------------------------------------------+-----------+
-| parsers        | hash     | Parsers configurations (see below)             | required  |
-+----------------+----------+------------------------------------------------+-----------+
-| decoders       | array    | Decoder configuration (see below)              |           |
-+----------------+----------+------------------------------------------------+-----------+
-| last\_path     | string   | Name of last read file in previous operation   |           |
-+----------------+----------+------------------------------------------------+-----------+
++------------------+----------+------------------------------------------------+-----------------------+
+| name             | type     | description                                    | required?             |
++==================+==========+================================================+=======================+
+| path\_prefix     | string   | Path prefix of input files                     | required              |
++------------------+----------+------------------------------------------------+-----------------------+
+| parser           | hash     | Parser configuration (see below)               | required              |
++------------------+----------+------------------------------------------------+-----------------------+
+| decoders         | array    | Decoder configuration (see below)              |                       |
++------------------+----------+------------------------------------------------+-----------------------+
+| last\_path       | string   | Name of last read file in previous operation   |                       |
++------------------+----------+------------------------------------------------+-----------------------+
+| follow\_symlinks | boolean  | If `true`, follow symbolic link directories    | ``false`` by default  |
++------------------+----------+------------------------------------------------+-----------------------+
 
 The ``path_prefix`` option is required. If you have files as following, you may set ``path_prefix: /path/to/files/sample_``:
 
@@ -179,7 +181,7 @@ Example
       parser:
         ...
 
-In most of cases, you'll use guess to configure the parsers and decoders. See also `Quick Start <https://github.com/embulk/embulk#quick-start>`_.
+In most of cases, you'll use guess to configure the parser and decoders. See also `Quick Start <https://github.com/embulk/embulk#quick-start>`_.
 
 CSV parser plugin
 ------------------
@@ -189,41 +191,53 @@ The ``csv`` parser plugin parses CSV and TSV files.
 Options
 ~~~~~~~~
 
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| name                       | type     | description                                                                                                    |              required?    |
-+============================+==========+================================================================================================================+===========================+
-| delimiter                  | string   | Delimiter character such as ``,`` for CSV, ``"\t"`` for TSV, ``"|"``                                           | ``,`` by default          |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| quote                      | string   | The character surrounding a quoted value. Setting ``null`` disables quoting.                                   | ``"`` by default          |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| escape                     | string   | Escape character to escape a special character. Setting ``null`` disables escaping.                            | ``\\`` by default         |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| skip\_header\_lines        | integer  | Skip this number of lines first. Set 1 if the file has header line.                                            | ``0`` by default          |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| null\_string               | string   | If a value is this string, converts it to NULL. For example, set ``\N`` for CSV files created by mysqldump     |                           |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| trim\_if\_not\_quoted      | boolean  | If true, remove spaces of a value if the value is not surrounded by the quote character                        | ``false`` by default      |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| comment\_line\_marker      | string   | Skip a line if the line begins with this string                                                                | null by default           |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| allow\_optional\_columns   | boolean  | If true, set null to insufficient columns. Otherwise, skip the row in case of insufficient number of columns   | ``false`` by default      |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| allow\_extra\_columns      | boolean  | If true, ignore too many columns. Otherwise, skip the row in case of too many columns                          | ``false`` by default      |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| max\_quoted\_size\_limit   | integer  | Maximum number of bytes of a quoted value. If a value exceeds the limit, the row will be skipped               | ``131072`` by default     |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| stop\_on\_invalid\_record  | boolean  | Stop bulk load transaction if a file includes invalid record (such as invalid timestamp)                       | ``false`` by default      |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| default\_timezone          | string   | Time zone of timestamp columns if the value itself doesn't include time zone description (eg. Asia/Tokyo)      | ``UTC`` by default        |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| default\_date              | string   | Set date part if the format doesn’t include date part.                                                         | ``1970-01-01`` by default |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| newline                    | enum     | Newline character (CRLF, LF or CR)                                                                             | ``CRLF`` by default       |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| charset                    | enum     | Character encoding (eg. ISO-8859-1, UTF-8)                                                                     | ``UTF-8`` by default      |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
-| columns                    | hash     | Columns (see below)                                                                                            | required                  |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+---------------------------+
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| name                       | type     | description                                                                                                    |                               required?    |
++============================+==========+================================================================================================================+============================================+
+| delimiter                  | string   | Delimiter character such as ``,`` for CSV, ``"\t"`` for TSV, ``"|"``                                           | ``,`` by default                           |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| quote                      | string   | The character surrounding a quoted value. Setting ``null`` disables quoting.                                   | ``"`` by default                           |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| escape                     | string   | Escape character to escape a special character. Setting ``null`` disables escaping.                            | ``\\`` by default                          |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| skip\_header\_lines        | integer  | Skip this number of lines first. Set 1 if the file has header line.                                            | ``0`` by default                           |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| null\_string               | string   | If a value is this string, converts it to NULL. For example, set ``\N`` for CSV files created by mysqldump     |                                            |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| trim\_if\_not\_quoted      | boolean  | If true, remove spaces of a value if the value is not surrounded by the quote character                        | ``false`` by default                       |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| quotes\_in\_quoted\_fields | enum     | Specify how to deal with irregular unescaped quote characters in quoted fields                                 | ``ACCEPT_ONLY_RFC4180_ESCAPED`` by default |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| comment\_line\_marker      | string   | Skip a line if the line begins with this string                                                                | null by default                            |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| allow\_optional\_columns   | boolean  | If true, set null to insufficient columns. Otherwise, skip the row in case of insufficient number of columns   | ``false`` by default                       |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| allow\_extra\_columns      | boolean  | If true, ignore too many columns. Otherwise, skip the row in case of too many columns                          | ``false`` by default                       |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| max\_quoted\_size\_limit   | integer  | Maximum number of bytes of a quoted value. If a value exceeds the limit, the row will be skipped               | ``131072`` by default                      |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| stop\_on\_invalid\_record  | boolean  | Stop bulk load transaction if a file includes invalid record (such as invalid timestamp)                       | ``false`` by default                       |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| default\_timezone          | string   | Time zone of timestamp columns if the value itself doesn't include time zone description (eg. Asia/Tokyo)      | ``UTC`` by default                         |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| default\_date              | string   | Set date part if the format doesn’t include date part.                                                         | ``1970-01-01`` by default                  |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| newline                    | enum     | Newline character (CRLF, LF or CR)                                                                             | ``CRLF`` by default                        |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| charset                    | enum     | Character encoding (eg. ISO-8859-1, UTF-8)                                                                     | ``UTF-8`` by default                       |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+| columns                    | hash     | Columns (see below)                                                                                            | required                                   |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+--------------------------------------------+
+
+The ``quotes_in_quoted_fields`` option specifies how to deal with irregular non-escaped stray quote characters.
+
++------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+| name                                                 | description                                                                                                                                         |
++======================================================+=====================================================================================================================================================+
+| ACCEPT_ONLY_RFC4180_ESCAPED                          | Default. Accept only specified and RFC 4180-style escaped quote characters.                                                                         |
++------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
+| ACCEPT_STRAY_QUOTES_ASSUMING_NO_DELIMITERS_IN_FIELDS | Accept stray quotes as-is in the field. Instead, it behaves undefined if delimiters are in fields. ``"a"b"`` goes ``a"b``. ``"a""b"`` goes ``a"b``. |
++------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
 
 The ``columns`` option declares the list of columns. This CSV parser plugin ignores the header line.
 
@@ -239,6 +253,9 @@ The ``columns`` option declares the list of columns. This CSV parser plugin igno
 | date     | Set date part if the format doesn’t include date part  |
 +----------+--------------------------------------------------------+
 
+.. note::
+
+   The Timestamp format refers to `Ruby strftime format <https://docs.ruby-lang.org/en/2.4.0/Date.html#method-i-strftime>`_
 
 List of types:
 
@@ -322,23 +339,40 @@ JSON parser plugin
 
 The ``json`` parser plugin parses a JSON file that contains a sequence of JSON objects. Example:
 
-.. code-block:: json
+.. code-block:: javascript
 
-    {"time":1455829282,"ip":"93.184.216.34","name":frsyuki}
-    {"time":1455829282,"ip":"172.36.8.109":sadayuki}
-    {"time":1455829284,"ip":"example.com","name":Treasure Data}
-    {"time":1455829282,"ip":"10.98.43.1","name":MessagePack}
+    {"time":1455829282,"ip":"93.184.216.34","name":"frsyuki"}
+    {"time":1455829282,"ip":"172.36.8.109", "name":"sadayuki"}
+    {"time":1455829284,"ip":"example.com","name":"Treasure Data"}
+    {"time":1455829282,"ip":"10.98.43.1","name":"MessagePack"}
 
 ``json`` parser plugin outputs a single record named "record" (type is json).
 
 Options
 ~~~~~~~~
 
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+------------------------+
-| name                       | type     | description                                                                                                    |              required? |
-+============================+==========+================================================================================================================+========================+
-| stop\_on\_invalid\_record  | boolean  | Stop bulk load transaction if a file includes invalid record (such as invalid json)                            | ``false`` by default   |
-+----------------------------+----------+----------------------------------------------------------------------------------------------------------------+------------------------+
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+------------------------------+
+| name                       | type     | description                                                                                                    |          required?           |
++============================+==========+================================================================================================================+==============================+
+| stop\_on\_invalid\_record  | boolean  | Stop bulk load transaction if a file includes invalid record (such as invalid json)                            | ``false`` by default         |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+------------------------------+
+| invalid\_string\_escapes   | enum     | Escape strategy of invalid json string such as using invalid ``\`` like ``\a``. (PASSTHROUGH, SKIP, UNESCAPE)  | ``PASSTHROUGH`` by default   |
++----------------------------+----------+----------------------------------------------------------------------------------------------------------------+------------------------------+
+
+
+if you set invalid\_string\_escapes and appear invalid JSON string (such as ``\a``), it makes following the action.
+
++----------------------------+------------------+
+| invalid\_string\_escapes   | convert to       |
++============================+==================+
+| PASSTHROUGH *1             | ``\a``           |
++----------------------------+------------------+
+| SKIP                       | empty string     |
++----------------------------+------------------+
+| UNESCAPE                   | ``a``            |
++----------------------------+------------------+
+
+(\*1): Throwing an exception.
 
 
 Example
@@ -494,6 +528,10 @@ The ``column_options`` option is a map whose keys are name of columns, and value
 +----------------------+---------+-------------------------------------------------------------------------------------------------------+-----------------------------------------+
 | format               | string  | Timestamp format if type of this column is timestamp.                                                 | ``%Y-%m-%d %H:%M:%S.%6N %z`` by default |
 +----------------------+---------+-------------------------------------------------------------------------------------------------------+-----------------------------------------+
+
+.. note::
+
+   The Timestamp format refers to `Ruby strftime format <https://docs.ruby-lang.org/en/2.4.0/Date.html#method-i-strftime>`_
 
 Example
 ~~~~~~~~
@@ -913,17 +951,21 @@ The guess executor is called by ``guess`` command. It executes default guess plu
 Options
 ~~~~~~~~
 
-+-----------------------+----------+----------------------------------------------------------------------+--------------------------------------+
-| name                  | type     | description                                                          | required?                            |
-+=======================+==========+======================================================================+======================================+
-| guess_plugins         | array    | ``guess`` command uses specified guess plugins.                      | ``[]`` by default                    |
-+-----------------------+----------+----------------------------------------------------------------------+--------------------------------------+
-| exclude_guess_plugins | array    | ``guess`` command doesn't use specified plugins.                     | ``[]`` by default                    |
-+-----------------------+----------+----------------------------------------------------------------------+--------------------------------------+
++---------------------------+----------+----------------------------------------------------------------------+--------------------------------------+
+| name                      | type     | description                                                          | required?                            |
++===========================+==========+======================================================================+======================================+
+| guess_plugins             | array    | ``guess`` command uses specified guess plugins.                      | ``[]`` by default                    |
++---------------------------+----------+----------------------------------------------------------------------+--------------------------------------+
+| exclude_guess_plugins     | array    | ``guess`` command doesn't use specified plugins.                     | ``[]`` by default                    |
++---------------------------+----------+----------------------------------------------------------------------+--------------------------------------+
+| guess_sample_buffer_bytes | int      | Bytes of sample buffer that it tries to read from input source.      | 32768 (32KB) by default              |
++-------------------------------+----------+----------------------------------------------------------------------+----------------------------------+
 
 The ``guess_plugins`` option includes specified guess plugin in the bottom of the list of default guess plugins.
 
 The ``exclude_guess_plugins`` option exclude specified guess plugins from the list of default guess plugins that the guess executor uses.
+
+The ``guess_sample_buffer_bytes`` option controls the bytes of sample buffer that GuessExecutor tries to read from specified input source.
 
 This example shows how to use ``csv_all_strings`` guess plugin, which suggests column types within CSV files as string types. It needs to be explicitly specified by users when it's used instead of ``csv`` guess plugin because the plugin is not included in default guess plugins. We also can exclude default ``csv`` guess plugin.
 
@@ -935,6 +977,38 @@ Example
     exec:
       guess_plugins: ['csv_all_strings']
       exclude_guess_plugins: ['csv']
+    in:
+      type: ...
+      ...
+    out:
+      type: ...
+      ...
+
+Preview executor
+----------------
+
+The preview executor is called by ``preview`` command. It tries to read sample buffer from a specified input source and writes them to Page objects. ``preview`` outputs the Page objects to console.
+
+Options
+~~~~~~~~
+
++-------------------------------+----------+----------------------------------------------------------------------+--------------------------------------+
+| name                          | type     | description                                                          | required?                            |
++===============================+==========+======================================================================+======================================+
+| preview_sample_buffer_bytes   | int      | Bytes of sample buffer that it tries to read from input source.      | 32768 (32KB) by default              |
++-------------------------------+----------+----------------------------------------------------------------------+--------------------------------------+
+
+The ``preview_sample_buffer_bytes`` option controls the bytes of sample buffer that PreviewExecutor tries to read from specified input source.
+
+This example shows how to change the bytes of sample buffer.
+
+Example
+~~~~~~~~
+
+.. code-block:: yaml
+
+    exec:
+      preview_sample_buffer_bytes: 65536 # 64KB
     in:
       type: ...
       ...

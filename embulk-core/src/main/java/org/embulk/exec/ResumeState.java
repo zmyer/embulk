@@ -1,18 +1,16 @@
 package org.embulk.exec;
 
-import java.util.List;
-import com.google.common.base.Optional;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.embulk.config.TaskSource;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Optional;
+import java.util.List;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskReport;
-import org.embulk.config.CommitReport;
+import org.embulk.config.TaskSource;
 import org.embulk.spi.Schema;
 
-public class ResumeState
-{
+public class ResumeState {
     private final ConfigSource execSessionConfigSource;
     private final TaskSource inputTaskSource;
     private final TaskSource outputTaskSource;
@@ -29,8 +27,7 @@ public class ResumeState
             @JsonProperty("in_schema") Schema inputSchema,
             @JsonProperty("out_schema") Schema outputSchema,
             @JsonProperty("in_reports") List<Optional<TaskReport>> inputTaskReports,
-            @JsonProperty("out_reports") List<Optional<TaskReport>> outputTaskReports)
-    {
+            @JsonProperty("out_reports") List<Optional<TaskReport>> outputTaskReports) {
         this.execSessionConfigSource = execSessionConfigSource;
         this.inputTaskSource = inputTaskSource;
         this.outputTaskSource = outputTaskSource;
@@ -41,60 +38,53 @@ public class ResumeState
     }
 
     @JsonProperty("exec_task")
-    public ConfigSource getExecSessionConfigSource()
-    {
+    public ConfigSource getExecSessionConfigSource() {
         return execSessionConfigSource;
     }
 
     @JsonProperty("in_task")
-    public TaskSource getInputTaskSource()
-    {
+    public TaskSource getInputTaskSource() {
         return inputTaskSource;
     }
 
     @JsonProperty("out_task")
-    public TaskSource getOutputTaskSource()
-    {
+    public TaskSource getOutputTaskSource() {
         return outputTaskSource;
     }
 
     @JsonProperty("in_schema")
-    public Schema getInputSchema()
-    {
+    public Schema getInputSchema() {
         return inputSchema;
     }
 
     @JsonProperty("out_schema")
-    public Schema getOutputSchema()
-    {
+    public Schema getOutputSchema() {
         return outputSchema;
     }
 
     @JsonProperty("in_reports")
-    public List<Optional<TaskReport>> getInputTaskReports()
-    {
+    public List<Optional<TaskReport>> getInputTaskReports() {
         return inputTaskReports;
     }
 
-    @Deprecated
+    // To be removed by v0.10 or earlier.
+    @Deprecated  // https://github.com/embulk/embulk/issues/933
     @JsonIgnore
-    @SuppressWarnings("unchecked")
-    public List<Optional<CommitReport>> getInputCommitReports()
-    {
+    @SuppressWarnings({"deprecation", "unchecked"})
+    public List<Optional<org.embulk.config.CommitReport>> getInputCommitReports() {
         return (List) inputTaskReports;  // the only implementation of TaskReport is DataSourceImpl which implements CommitReport
     }
 
     @JsonProperty("out_reports")
-    public List<Optional<TaskReport>> getOutputTaskReports()
-    {
+    public List<Optional<TaskReport>> getOutputTaskReports() {
         return outputTaskReports;
     }
 
-    @Deprecated
+    // To be removed by v0.10 or earlier.
+    @Deprecated  // https://github.com/embulk/embulk/issues/933
     @JsonIgnore
-    @SuppressWarnings("unchecked")
-    public List<Optional<CommitReport>> getOutputCommitReports()
-    {
+    @SuppressWarnings({"deprecation", "unchecked"})
+    public List<Optional<org.embulk.config.CommitReport>> getOutputCommitReports() {
         return (List) outputTaskReports;  // the only implementation of TaskReport is DataSourceImpl which implements CommitReport;
     }
 }

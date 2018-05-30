@@ -1,132 +1,125 @@
 package org.embulk.jruby;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Set;
-import org.slf4j.ILoggerFactory;
-import com.google.common.collect.ImmutableSet;
-import com.google.inject.Module;
 import com.google.inject.Binder;
-import com.google.inject.Scopes;
-import com.google.inject.multibindings.Multibinder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
+import com.google.inject.Module;
+import com.google.inject.ProvisionException;
+import com.google.inject.Scopes;
 import com.google.inject.spi.Dependency;
 import com.google.inject.spi.ProviderWithDependencies;
-import org.jruby.embed.LocalContextScope;
-import org.jruby.embed.ScriptingContainer;
-import org.embulk.plugin.PluginSource;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.ModelManager;
 import org.embulk.exec.ForSystemConfig;
 import org.embulk.spi.BufferAllocator;
+import org.slf4j.ILoggerFactory;
 
-public class JRubyScriptingModule
-        implements Module
-{
-    public JRubyScriptingModule(ConfigSource systemConfig)
-    {
-    }
+public class JRubyScriptingModule implements Module {
+    public JRubyScriptingModule(ConfigSource systemConfig) {}
 
     @Override
-    public void configure(Binder binder)
-    {
-        binder.bind(ScriptingContainer.class).toProvider(ScriptingContainerProvider.class).in(Scopes.SINGLETON);
+    public void configure(Binder binder) {
+        binder.bind(ScriptingContainerDelegate.class).toProvider(ScriptingContainerProvider.class).in(Scopes.SINGLETON);
 
-        Multibinder<PluginSource> multibinder = Multibinder.newSetBinder(binder, PluginSource.class);
-        multibinder.addBinding().to(JRubyPluginSource.class);
+        // TODO: Bind org.jruby.embed.ScriptingContainer without Java-level reference to the class.
+        // TODO: Remove this binding finally. https://github.com/embulk/embulk/issues/1007
+        binder.bind(org.jruby.embed.ScriptingContainer.class)
+                .toProvider(RawScriptingContainerProvider.class).in(Scopes.SINGLETON);
     }
 
     private static class ScriptingContainerProvider
-            implements ProviderWithDependencies<ScriptingContainer>
-    {
-        private final Injector injector;
-        private final boolean useGlobalRubyRuntime;
-        private final String gemHome;
-
+            implements ProviderWithDependencies<ScriptingContainerDelegate> {
         @Inject
-        public ScriptingContainerProvider(Injector injector, @ForSystemConfig ConfigSource systemConfig)
-        {
-            this.injector = injector;
-
+        public ScriptingContainerProvider(Injector injector, @ForSystemConfig ConfigSource systemConfig) {
             // use_global_ruby_runtime is valid only when it's guaranteed that just one Injector is
             // instantiated in this JVM.
             this.useGlobalRubyRuntime = systemConfig.get(boolean.class, "use_global_ruby_runtime", false);
 
-            this.gemHome = systemConfig.get(String.class, "gem_home", null);
+            this.initializer = JRubyInitializer.of(
+                    injector,
+                    injector.getInstance(ILoggerFactory.class).getLogger("init"),
 
-            // TODO get jruby-home from systemConfig to call jruby.container.setHomeDirectory
-            // TODO get jruby-load-paths from systemConfig to call jruby.container.setLoadPaths
+                    systemConfig.get(String.class, "gem_home", null),
+                    systemConfig.get(String.class, "jruby_use_default_embulk_gem_home", "false").equals("true"),
+
+                    // TODO get jruby-home from systemConfig to call jruby.container.setHomeDirectory
+                    systemConfig.get(List.class, "jruby_load_path", null),
+                    systemConfig.get(List.class, "jruby_classpath", new ArrayList()),
+                    systemConfig.get(List.class, "jruby_command_line_options", null),
+
+                    systemConfig.get(String.class, "jruby_global_bundler_plugin_source_directory", null));
         }
 
-        public ScriptingContainer get()
-        {
-            LocalContextScope scope = (useGlobalRubyRuntime ? LocalContextScope.SINGLETON : LocalContextScope.SINGLETHREAD);
-            ScriptingContainer jruby = new ScriptingContainer(scope);
-
-            // Search embulk/java/bootstrap.rb from a $LOAD_PATH.
-            // $LOAD_PATH is set by lib/embulk/command/embulk_run.rb if Embulk starts
-            // using embulk-cli but it's not set if Embulk is embedded in an application.
-            // Here adds this jar's internal resources to $LOAD_PATH for those applciations.
-
-//            List<String> loadPaths = new ArrayList<String>(jruby.getLoadPaths());
-//            String coreJarPath = JRubyScriptingModule.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-//            if (!loadPaths.contains(coreJarPath)) {
-//                loadPaths.add(coreJarPath);
-//            }
-//            jruby.setLoadPaths(loadPaths);
-
-            if (gemHome != null) {
-                // Overwrites GEM_HOME and GEM_PATH. GEM_PATH becomes same with GEM_HOME. Therefore
-                // with this code, there're no ways to set extra GEM_PATHs in addition to GEM_HOME.
-                // Here doesn't modify ENV['GEM_HOME'] so that a JVM process can create multiple
-                // JRubyScriptingModule instances. However, because Gem loads ENV['GEM_HOME'] when
-                // Gem.clear_paths is called, applications may use unexpected GEM_HOME if clear_path
-                // is used.
-                jruby.callMethod(
-                        jruby.runScriptlet("Gem"),
-                        "use_paths", gemHome, gemHome);
+        @Override  // from |com.google.inject.Provider|
+        public ScriptingContainerDelegate get() throws ProvisionException {
+            try {
+                final LazyScriptingContainerDelegate jruby = new LazyScriptingContainerDelegate(
+                        JRubyScriptingModule.class.getClassLoader(),
+                        this.useGlobalRubyRuntime
+                                ? ScriptingContainerDelegate.LocalContextScope.SINGLETON
+                                : ScriptingContainerDelegate.LocalContextScope.SINGLETHREAD,
+                        ScriptingContainerDelegate.LocalVariableBehavior.PERSISTENT,
+                        this.initializer);
+                if (this.useGlobalRubyRuntime) {
+                    // In case the global JRuby instance is used, the instance should be always initialized.
+                    // Ruby tests (src/test/ruby/ of embulk-core and embulk-standards) are examples.
+                    jruby.getInitialized();
+                }
+                return jruby;
+            } catch (Exception ex) {
+                return null;
             }
-
-            // load embulk.rb
-            jruby.runScriptlet("require 'embulk'");
-
-            // jruby searches embulk/java/bootstrap.rb from the beginning of $LOAD_PATH.
-            jruby.runScriptlet("require 'embulk/java/bootstrap'");
-
-            // TODO validate Embulk::Java::Injected::Injector doesn't exist? If it already exists,
-            //      Injector is created more than once in this JVM although use_global_ruby_runtime
-            //      is set to true.
-
-            // set some constants
-            jruby.callMethod(
-                    jruby.runScriptlet("Embulk::Java::Injected"),
-                    "const_set", "Injector", injector);
-            jruby.callMethod(
-                    jruby.runScriptlet("Embulk::Java::Injected"),
-                    "const_set", "ModelManager", injector.getInstance(ModelManager.class));
-            jruby.callMethod(
-                    jruby.runScriptlet("Embulk::Java::Injected"),
-                    "const_set", "BufferAllocator", injector.getInstance(BufferAllocator.class));
-
-            // initialize logger
-            jruby.callMethod(
-                    jruby.runScriptlet("Embulk"),
-                    "logger=",
-                        jruby.callMethod(
-                            jruby.runScriptlet("Embulk::Logger"),
-                            "new", injector.getInstance(ILoggerFactory.class).getLogger("ruby")));
-
-            return jruby;
         }
 
-        public Set<Dependency<?>> getDependencies()
-        {
+        @Override  // from |com.google.inject.spi.HasDependencies|
+        public Set<Dependency<?>> getDependencies() {
             // get() depends on other modules
-            return ImmutableSet.of(
-                Dependency.get(Key.get(ModelManager.class)),
-                Dependency.get(Key.get(BufferAllocator.class)));
+            final HashSet<Dependency<?>> built = new HashSet<>();
+            built.add(Dependency.get(Key.get(ModelManager.class)));
+            built.add(Dependency.get(Key.get(BufferAllocator.class)));
+            return Collections.unmodifiableSet(built);
         }
+
+        private final boolean useGlobalRubyRuntime;
+        private final JRubyInitializer initializer;
+    }
+
+    // TODO: Remove the Java-level reference to org.jruby.embed.ScriptingContainer.
+    // TODO: Remove this inner Provider class finally. https://github.com/embulk/embulk/issues/1007
+    private static class RawScriptingContainerProvider
+            implements ProviderWithDependencies<org.jruby.embed.ScriptingContainer> {
+        @Inject
+        public RawScriptingContainerProvider(final Injector injector, final ScriptingContainerDelegate delegate) {
+            this.delegate = delegate;
+            this.logger = injector.getInstance(ILoggerFactory.class).getLogger("init");
+        }
+
+        @Override  // from |com.google.inject.Provider|
+        public org.jruby.embed.ScriptingContainer get() throws ProvisionException {
+            // TODO: Report this deprecation through a reporter.
+            this.logger.warn("DEPRECATION: JRuby org.jruby.embed.ScriptingContainer is directly injected.");
+            try {
+                return (org.jruby.embed.ScriptingContainer) this.delegate.getScriptingContainer();
+            } catch (ClassCastException ex) {
+                throw new ProvisionException("Invalid JRuby ScriptingContainer instance.", ex);
+            }
+        }
+
+        @Override  // from |com.google.inject.spi.HasDependencies|
+        public Set<Dependency<?>> getDependencies() {
+            // get() depends on other modules
+            final HashSet<Dependency<?>> built = new HashSet<>();
+            built.add(Dependency.get(Key.get(ScriptingContainerDelegate.class)));
+            return Collections.unmodifiableSet(built);
+        }
+
+        private final ScriptingContainerDelegate delegate;
+        private final org.slf4j.Logger logger;
     }
 }
